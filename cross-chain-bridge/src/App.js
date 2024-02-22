@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ContractService from "./contractService";
+const ethers = require("ethers");
 
 function App() {
   const [rootTokenAddress, setRootTokenAddress] = useState("");
@@ -10,10 +11,71 @@ function App() {
   const [L1Data, setL1Data] = useState("");
   const [L2Signature, setL2Signature] = useState("");
   const [L1Signature, setL1Signature] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+
+  useEffect(() => {
+    getCurrentWalletConnected();
+    addWalletListener();
+  }, [walletAddress]);
+
+  const connectWallet = async () => {
+    if (typeof window != "undefined" && typeof window.ethereum != "undefined") {
+      try {
+        /* MetaMask is installed */
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+        setWalletAddress(accounts[0]);
+        console.log(accounts[0]);
+      } catch (err) {
+        console.error(err.message);
+      }
+    } else {
+      /* MetaMask is not installed */
+      console.log("Please install MetaMask");
+    }
+  };
+
+  const getCurrentWalletConnected = async () => {
+    if (typeof window != "undefined" && typeof window.ethereum != "undefined") {
+      try {
+        const accounts = await window.ethereum.request({
+          method: "eth_accounts",
+        });
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          console.log(accounts[0]);
+        } else {
+          console.log("Connect to MetaMask using the Connect button");
+        }
+      } catch (err) {
+        console.error(err.message);
+      }
+    } else {
+      /* MetaMask is not installed */
+      console.log("Please install MetaMask");
+    }
+  };
+
+  const addWalletListener = async () => {
+    if (typeof window != "undefined" && typeof window.ethereum != "undefined") {
+      window.ethereum.on("accountsChanged", (accounts) => {
+        setWalletAddress(accounts[0]);
+        console.log(accounts[0]);
+      });
+    } else {
+      /* MetaMask is not installed */
+      setWalletAddress("");
+      console.log("Please install MetaMask");
+    }
+  };
 
   const handleDeposit = async () => {
     try {
-      const {data, signature} = await ContractService.depositOnL1(rootTokenAddress, rootAmount);
+      const { data, signature } = await ContractService.depositOnL1(
+        rootTokenAddress,
+        rootAmount
+      );
       console.log("data: ", data);
       console.log("signature: ", signature);
       setL2Data(data);
@@ -35,7 +97,10 @@ function App() {
 
   const handleBurn = async () => {
     try {
-      const {data, signature} = await ContractService.burnOnL2(childTokenAddress, childAmount);
+      const { data, signature } = await ContractService.burnOnL2(
+        childTokenAddress,
+        childAmount
+      );
       console.log("data: ", data);
       console.log("signature: ", signature);
       setL1Data(data);
@@ -57,7 +122,30 @@ function App() {
 
   return (
     <div>
-      <h1>Cross-Chain Bridge</h1>
+      <nav className="navbar">
+        <div className="container">
+          <div className="navbar-brand">
+            <h1 className="navbar-item is-size-4">Cross-Chain Bridge</h1>
+          </div>
+          <div id="navbarMenu" className="navbar-menu">
+            <div className="navbar-end is-align-items-center">
+              <button
+                className="button is-white connect-wallet"
+                onClick={connectWallet}
+              >
+                <span className="is-link has-text-weight-bold">
+                  {walletAddress && walletAddress.length > 0
+                    ? `Connected: ${walletAddress.substring(
+                        0,
+                        6
+                      )}...${walletAddress.substring(38)}`
+                    : "Connect Wallet"}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
 
       {/* Deposit on L1 Section */}
       <div>
@@ -72,7 +160,7 @@ function App() {
         </label>
         <br />
         <label>
-         Root Token Amount:
+          Root Token Amount:
           <input
             type="text"
             value={rootAmount}
@@ -126,7 +214,7 @@ function App() {
         </label>
         <br />
         <label>
-         Child Token Amount:
+          Child Token Amount:
           <input
             type="text"
             value={childAmount}
